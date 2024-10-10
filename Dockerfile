@@ -6,7 +6,7 @@ ARG USER_NAME="datadog"
 ARG USER_HOME="/home/datadog"
 
 RUN apt-get update && \
-    apt-get install -y ugrep && \
+    apt-get install -y ugrep=6.5 && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /tmp/*
 

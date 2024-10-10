@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import reduce
 from pathlib import Path
+from urllib.error import URLError
 
 
 class Type(Enum):
@@ -190,9 +191,7 @@ def _copy_maven_dependency(dep: Dependency, maven_home: str, target: str) -> boo
     version_path = os.path.join(group_path, dep.artifact_id, dep.version)
     file_name = f"{dep.artifact_id}-{dep.version}.{dep.type}"
     artifact_path = os.path.join(version_path, file_name)
-    if not os.path.exists(artifact_path):
-        return False
-    else:
+    if os.path.exists(artifact_path):
         shutil.copyfile(
             artifact_path,
             os.path.join(target, file_name),
@@ -214,14 +213,13 @@ def _copy_gradle_dependency(dep: Dependency, gradle_home: str, target: str) -> b
             artifact_path = final_path
             break
 
-    if artifact_path is None:
-        return False
-    else:
+    if artifact_path is not None:
         shutil.copyfile(
             artifact_path,
             os.path.join(target, file_name),
             follow_symlinks=True,
         )
+        return True
 
 
 def _copy_maven_central_dependency(dep: Dependency, target: str) -> bool:
@@ -234,7 +232,7 @@ def _copy_maven_central_dependency(dep: Dependency, target: str) -> bool:
                 return False
             local.write(remote.read())
             return True
-    except:
+    except URLError:
         return False
 
 
