@@ -25,22 +25,22 @@ class Type(Enum):
 
 @dataclass
 class Dependency:
-    groupId: str
-    artifactId: str
+    group_id: str
+    artifact_id: str
     version: str
     scope: str
     type: str
 
     def __init__(
         self,
-        groupId: str,
-        artifactId: str,
+        group_id: str,
+        artifact_id: str,
         version: str,
         scope: str = None,
         type: str = "jar",
     ):
-        self.groupId = groupId
-        self.artifactId = artifactId
+        self.group_id = group_id
+        self.artifact_id = artifact_id
         self.version = version
         self.scope = scope
         self.type = type
@@ -48,18 +48,16 @@ class Dependency:
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return (
-                self.groupId == other.groupId
-                and self.artifactId == other.artifactId
-                and self.version == other.version
+                    self.group_id == other.group_id
+                    and self.artifact_id == other.artifact_id
+                    and self.version == other.version
             )
-        else:
-            return False
 
     def __hash__(self):
-        return hash((self.groupId, self.artifactId, self.version))
+        return hash((self.group_id, self.artifact_id, self.version))
 
     def __str__(self):
-        return f"{self.groupId}:{self.artifactId}:{self.version}"
+        return f"{self.group_id}:{self.artifact_id}:{self.version}"
 
 
 def _analyze_java_dependencies(args: Namespace):
@@ -187,11 +185,11 @@ def _copy_java_dependency(
 def _copy_maven_dependency(dep: Dependency, maven_home: str, target: str) -> bool:
     group_path = reduce(
         lambda result, item: os.path.join(result, item),
-        dep.groupId.split("."),
+        dep.group_id.split("."),
         maven_home,
     )
-    version_path = os.path.join(group_path, dep.artifactId, dep.version)
-    file_name = f"{dep.artifactId}-{dep.version}.{dep.type}"
+    version_path = os.path.join(group_path, dep.artifact_id, dep.version)
+    file_name = f"{dep.artifact_id}-{dep.version}.{dep.type}"
     artifact_path = os.path.join(version_path, file_name)
     if not os.path.exists(artifact_path):
         return False
@@ -205,10 +203,10 @@ def _copy_maven_dependency(dep: Dependency, maven_home: str, target: str) -> boo
 
 
 def _copy_gradle_dependency(dep: Dependency, gradle_home: str, target: str) -> bool:
-    version_path = os.path.join(gradle_home, dep.groupId, dep.artifactId, dep.version)
+    version_path = os.path.join(gradle_home, dep.group_id, dep.artifact_id, dep.version)
     if not os.path.exists(version_path):
         return False
-    file_name = f"{dep.artifactId}-{dep.version}.{dep.type}"
+    file_name = f"{dep.artifact_id}-{dep.version}.{dep.type}"
     path = Path(version_path)
     artifact_path = None
     for f in path.iterdir():
@@ -228,16 +226,15 @@ def _copy_gradle_dependency(dep: Dependency, gradle_home: str, target: str) -> b
 
 
 def _copy_maven_central_dependency(dep: Dependency, target: str) -> bool:
-    local_file = os.path.join(target, f"{dep.artifactId}-{dep.version}.{dep.type}")
-    group = dep.groupId.replace(".", "/")
-    url = f"https://repo1.maven.org/maven2/{group}/{dep.artifactId}/{dep.version}/{dep.artifactId}-{dep.version}.{dep.type}"
+    local_file = os.path.join(target, f"{dep.artifact_id}-{dep.version}.{dep.type}")
+    group = dep.group_id.replace(".", "/")
+    url = f"https://repo1.maven.org/maven2/{group}/{dep.artifact_id}/{dep.version}/{dep.artifact_id}-{dep.version}.{dep.type}"
     try:
         with urllib.request.urlopen(url) as remote, open(local_file, "wb") as local:
-            if remote.code == 200:
-                local.write(remote.read())
-                return True
-            else:
+            if remote.code != 200:
                 return False
+            local.write(remote.read())
+            return True
     except Exception as e:
         return False
 
@@ -252,7 +249,7 @@ def _extract_maven_dependencies(args: Namespace) -> set[Dependency]:
 
     dependencies = set()
     json_deps = []
-    with open(source, "r") as target:
+    with open(source) as target:
         try:
             parsed = json.load(target)
         except Exception as err:
@@ -288,7 +285,7 @@ def _extract_gradle_dependencies(args: Namespace) -> set[Dependency]:
         )
 
     dependencies = set()
-    with open(source, "r") as target:
+    with open(source) as target:
         for line in target:
             match = re.search(r"[+\\]--- (\S+:\S+:\S+)", line)
             if match is not None:
