@@ -15,7 +15,7 @@ test_command() {
     fi
 }
 
-test_command "docker" "Follow the guide at https://docs.docker.com/engine/install/"
+test_command "docker" "follow the guide at https://docs.docker.com/engine/install/"
 
 if [ -f "$BASEDIR/Dockerfile" ]; then
   docker_log=$(mktemp)
@@ -27,6 +27,7 @@ if [ -f "$BASEDIR/Dockerfile" ]; then
 fi
 
 args=()
+source=""
 while [[ $# -gt 0 ]]; do
   case $1 in
     --type)
@@ -36,26 +37,36 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    -h|--help)
+      args+=("$1")
+      shift
+      ;;
     --*)
       args+=("$1")
       args+=("$2")
       shift
       shift
       ;;
+
     *)
       source="$1"
-      args+=("/home/datadog/source") # mounted value
       shift
       ;;
   esac
 done
 
-cmd="docker run --rm -v $source:/home/datadog/source"
+cmd="docker run --rm"
+
+# mount the source pointing to the dependencies
+if [ -n "$source" ]; then
+  args+=("/home/datadog/source")
+  cmd="$cmd -v $source:/home/datadog/source"
+fi
+
 # mount maven home if available
 if [ ! -d "$M2_HOME" ]; then
   if [ "$type" == "maven" ]; then
     echo "Current env M2_HOME=$M2_HOME does not point to a valid folder, try defining a different value"
-    exit 1
   fi
 else
   cmd="$cmd -v $M2_HOME:/home/datadog/.m2"
@@ -65,7 +76,6 @@ fi
 if [ ! -d "$GRADLE_USER_HOME" ]; then
   if [[ $type == "gradle" ]]; then
     echo "Current env GRADLE_USER_HOME=$GRADLE_USER_HOME does not point to a valid folder, try defining a different value"
-    exit 1
   fi
 else
   cmd="$cmd -v $GRADLE_USER_HOME:/home/datadog/.gradle"

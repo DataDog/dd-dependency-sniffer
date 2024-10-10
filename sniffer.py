@@ -48,9 +48,9 @@ class Dependency:
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return (
-                    self.group_id == other.group_id
-                    and self.artifact_id == other.artifact_id
-                    and self.version == other.version
+                self.group_id == other.group_id
+                and self.artifact_id == other.artifact_id
+                and self.version == other.version
             )
 
     def __hash__(self):
@@ -61,40 +61,38 @@ class Dependency:
 
 
 def _analyze_java_dependencies(args: Namespace):
-    """Searches the workspace for Java dependencies"""
+    """Performs a search in the files contained in the workspace using the provided filter"""
     if args.package is not None:
-        message = f"The package with name '{args.package}' has been referenced in the following files: "
+        message = f"The package with name '{args.package}'"
         result = _find_java_packages(args)
     elif args.artifact is not None:
-        message = f"The artifact with id '{args.artifact}' has been referenced in the following files: "
+        message = f"The artifact with id '{args.artifact}'"
         result = _find_java_artifact(args)
     else:
-        raise RuntimeError(
-            "You have to specify either --package or --coordinates to discover dependencies"
-        )
-    print(message)
-    dependencies = dict()
-    for item in result:
-        index = item.index("{")
-        parent_file = item[0:index]
-        children_ref = item[index + 1 : -1]
-        if parent_file not in dependencies:
-            children = []
-            dependencies[parent_file] = children
-        else:
-            children = dependencies[parent_file]
+        raise RuntimeError("You have to specify either --package or --artifact")
 
-        match len(children):
-            case x if x < 3:
-                children.append(children_ref)
-            case x if x == 3:
-                children.append("...")
+    if len(result) == 0:
+        print(message + " has not been found in any file(s)")
+    else:
+        print(message + " has been found in the following file(s):")
+        dependencies = dict()
+        for item in result:
+            index = item.index("{")
+            parent_file = item[len(args.workspace) + 1 : index]
+            children_ref = item[index + 1 : -1]
+            children = dependencies.setdefault(parent_file, [])
+            match len(children):
+                case x if x < 3:
+                    children.append(children_ref)
+                case x if x == 3:
+                    children.append("...")
 
-    print(json.dumps(dependencies, sort_keys=True, indent=4))
+        print(json.dumps(dependencies, sort_keys=True, indent=4))
 
 
 def _find_java_packages(args: Namespace) -> list[str]:
-    """Finds java binaries with the selected package in the bytecode and makes sure it's the original class and not a reference"""
+    """Finds java binaries with the selected package name in the bytecode and makes sure it's the original class and
+    not a reference"""
     vm_package = args.package.replace(".", "/")
     result = subprocess.run(
         [
@@ -111,20 +109,16 @@ def _find_java_packages(args: Namespace) -> list[str]:
         capture_output=True,
     )
 
-    if result.returncode != 0:
+    if len(result.stderr) > 0:
         error = result.stderr.decode()
         raise RuntimeError(error)
 
     matches = json.loads(result.stdout)
-    return [
-        match["file"].replace(args.workspace, "")
-        for match in matches
-        if match["file"].find(vm_package) >= 0
-    ]
+    return [match["file"] for match in matches if match["file"].find(vm_package) >= 0]
 
 
 def _find_java_artifact(args: Namespace) -> list[str]:
-    """Tries to find the selected artifactId in internal files like pom.xml"""
+    """Finds internal files like pom.xml, MANIFEST.MF containing the selected artifact"""
     result = subprocess.run(
         [
             "ug",
@@ -133,39 +127,40 @@ def _find_java_artifact(args: Namespace) -> list[str]:
             f"--zmax={args.depth}",  # decompress files
             "-o",  # only output the match
             "-%",
-            f"artifactId={args.artifact}",  # containing the artifact description
+            f"artifactId={args.artifact} OR Implementation-Title:.+{args.artifact} OR Bundle-.*Name:.+{args.artifact}",  # containing the artifact description
             "--json",
             args.workspace,
         ],
         capture_output=True,
     )
 
-    if result.returncode != 0:
+    if len(result.stderr) > 0:
         error = result.stderr.decode()
         raise RuntimeError(error)
 
     matches = json.loads(result.stdout)
-    return [match["file"].replace(args.workspace, "") for match in matches]
+    return [match["file"] for match in matches]
 
 
 def _copy_java_dependencies(args: Namespace, dependencies: set[Dependency]):
-    """Copies the selected dependencies into the workspace for further analysis, it first tries the maven home and then switches to the gradle one"""
+    """Copies the selected dependencies into the workspace for further analysis"""
     if not os.path.exists(args.workspace):
         os.makedirs(args.workspace)
+    else:
+        for root, dirs, files in os.walk(args.workspace):
+            for f in files:
+                os.unlink(os.path.join(root, f))
+            for d in dirs:
+                shutil.rmtree(os.path.join(root, d))
 
     home = os.environ.get("HOME")
     maven_home = os.path.join(home, ".m2", "repository")
     gradle_home = os.path.join(home, ".gradle", "caches", "modules-2", "files-2.1")
 
-    if not os.path.exists(args.workspace):
-        raise RuntimeError(
-            "Missing maven home, are you setting the M2_HOME variable properly?"
-        )
-
     for dep in dependencies:
         if not _copy_java_dependency(dep, maven_home, gradle_home, args.workspace):
             print(
-                f"Missing dependency {dep}",
+                f"Cannot find dependency with coordinates '{dep}'",
                 file=sys.stderr,
             )
 
@@ -173,10 +168,14 @@ def _copy_java_dependencies(args: Namespace, dependencies: set[Dependency]):
 def _copy_java_dependency(
     dep: Dependency, maven_home: str, gradle_home: str, target: str
 ) -> bool:
-    if _copy_maven_dependency(dep, maven_home, target):
+    """Copies the selected dependency into the workspace, it first tries maven, then gradle and finally tries to
+    resolve the dependency against maven central"""
+    if os.path.exists(maven_home) and _copy_maven_dependency(dep, maven_home, target):
         return True
 
-    if _copy_gradle_dependency(dep, gradle_home, target):
+    if os.path.exists(gradle_home) and _copy_gradle_dependency(
+        dep, gradle_home, target
+    ):
         return True
 
     return _copy_maven_central_dependency(dep, target)
@@ -235,7 +234,7 @@ def _copy_maven_central_dependency(dep: Dependency, target: str) -> bool:
                 return False
             local.write(remote.read())
             return True
-    except Exception as e:
+    except:
         return False
 
 
@@ -243,12 +242,10 @@ def _extract_maven_dependencies(args: Namespace) -> set[Dependency]:
     """Extracts the different Maven coordinates from a dependency tree in JSON format"""
     source = args.source
     if not os.path.isfile(source):
-        raise ValueError(
-            f"{source} must be set to a file containing a Maven dependency tree export"
-        )
+        raise ValueError("Missing Maven dependency report")
 
     dependencies = set()
-    json_deps = []
+    json_deps = list()
     with open(source) as target:
         try:
             parsed = json.load(target)
@@ -280,9 +277,7 @@ def _extract_gradle_dependencies(args: Namespace) -> set[Dependency]:
     """Extracts the different Gradle coordinates from a dependency tree in textual format"""
     source = args.source
     if not os.path.isfile(source):
-        raise ValueError(
-            f"{source} must be set to a file containing a Gradle dependency tree export"
-        )
+        raise ValueError("Missing Gradle dependency tree file")
 
     dependencies = set()
     with open(source) as target:
@@ -311,37 +306,40 @@ def _analyze_gradle(args: Namespace):
 
 def analyze():
     """Parses the arguments provided via the CLI and calls the concrete analyze method."""
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog="run.sh")
     parser.add_argument(
         "--type",
-        help="Type of analyzer for the dependencies",
+        help="Build system handling the project",
         type=Type,
         choices=list(Type),
+        required=True,
+    )
+    parser.add_argument(
+        "--package", help="Filter with the package name prefix", type=str
+    )
+    parser.add_argument(
+        "--artifact",
+        help="Filter with the artifact id of the maven coordinates",
+        type=str,
+    )
+    parser.add_argument(
+        "source",
+        help="Input files that will be analyzed by the sniffer",
+        type=str,
+        nargs="?",
+        default="/home/datadog/source",
     )
     parser.add_argument(
         "--depth",
-        help="Max recursive depth to search in compressed files",
+        help="(Optional) Max recursive depth to search in compressed files (default: 10)",
         type=int,
         default=10,
     )
     parser.add_argument(
-        "--package", help="Name of the package to search in the dependencies", type=str
-    )
-    parser.add_argument(
-        "--artifact", help="Artifact id for the maven coordinates", type=str
-    )
-    parser.add_argument(
         "--workspace",
-        help="source folder to store all dependencies",
+        help="(Optional) Temporary folder to store project dependencies",
         type=str,
         default="/home/datadog/workspace",
-    )
-    parser.add_argument(
-        "source",
-        help="source files for the analysis",
-        type=str,
-        nargs="?",
-        default="/home/datadog/source",
     )
     args = parser.parse_args()
 
