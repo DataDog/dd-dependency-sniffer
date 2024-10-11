@@ -23,6 +23,7 @@ if [ -f "$BASEDIR/Dockerfile" ]; then
 fi
 
 args=()
+type=""
 source=""
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -78,6 +79,6 @@ fi
 
 cmd="$cmd $DOCKER_IMAGE ${args[*]}"
 
-echo "Analyzing $type dependencies"
+echo "Analyzing dependencies"
 eval "$cmd"
 exit "$?";
