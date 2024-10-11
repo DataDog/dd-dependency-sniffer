@@ -240,14 +240,14 @@ def _copy_maven_central_dependency(dep: Dependency, target: str) -> bool:
 
 def _extract_maven_dependencies(args: Namespace) -> set[Dependency]:
     """Extracts the different Maven coordinates from a dependency tree in JSON format"""
-    source = args.source
-    if not os.path.isfile(source):
-        print("Missing Maven dependency report", file=sys.stderr)
+    input_file = args.input
+    if not os.path.isfile(input_file):
+        print("The Maven dependency report file does not exist", file=sys.stderr)
         exit(1)
 
     dependencies = set()
     json_deps = list()
-    with open(source) as target:
+    with open(input_file) as target:
         try:
             parsed = json.load(target)
         except Exception as err:
@@ -277,13 +277,13 @@ def _extract_maven_dependencies(args: Namespace) -> set[Dependency]:
 
 def _extract_gradle_dependencies(args: Namespace) -> set[Dependency]:
     """Extracts the different Gradle coordinates from a dependency tree in textual format"""
-    source = args.source
-    if not os.path.isfile(source):
-        print("Missing Gradle dependency report", file=sys.stderr)
+    input_file = args.input
+    if not os.path.isfile(input_file):
+        print("The Gradle dependency report file does not exist", file=sys.stderr)
         exit(1)
 
     dependencies = set()
-    with open(source) as target:
+    with open(input_file) as target:
         for line in target:
             match = re.search(r"[+\\]--- (\S+:\S+:\S+)", line)
             if match is not None:
@@ -318,19 +318,19 @@ def analyze():
         required=True,
     )
     parser.add_argument(
-        "--package", help="Filter with the package name prefix", type=str
+        "--package", help="Package name prefix", type=str
     )
     parser.add_argument(
         "--artifact",
-        help="Filter with the artifact id of the maven coordinates",
+        help="Artifact id of the maven coordinates",
         type=str,
     )
     parser.add_argument(
-        "source",
-        help="Input files that will be analyzed by the sniffer",
+        "input",
+        help="Input file that will be analyzed by the sniffer",
         type=str,
         nargs="?",
-        default="/home/datadog/source",
+        default="/home/datadog/input",
     )
     parser.add_argument(
         "--depth",

@@ -15,6 +15,12 @@ test_command() {
   fi
 }
 
+print_usage() {
+  echo "$1"
+  docker run --rm "$DOCKER_IMAGE" --help
+  exit 1
+}
+
 test_command "docker" "follow the guide at https://docs.docker.com/engine/install/"
 
 if [ -f "$BASEDIR/Dockerfile" ]; then
@@ -24,7 +30,7 @@ fi
 
 args=()
 type=""
-source=""
+input=""
 while [[ $# -gt 0 ]]; do
   case $1 in
     --type)
@@ -45,7 +51,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     *)
-      source="$1"
+      input=$(realpath "$1")
       shift
       ;;
   esac
@@ -54,9 +60,19 @@ done
 cmd="docker run --rm"
 
 # mount the source pointing to the dependencies
-if [ -n "$source" ]; then
-  args+=("/home/datadog/source")
-  cmd="$cmd -v $source:/home/datadog/source"
+if [ -z "$input" ]; then
+  print_usage "Missing positional argument 'input'"
+else
+  if [ ! -f "$input" ]; then
+    echo "Cannot find $input, review the actual path to the report"
+    exit 1
+  fi
+  args+=("/home/datadog/input")
+  cmd="$cmd -v $input:/home/datadog/input"
+fi
+
+if [ -z "$type" ]; then
+  print_usage "Missing option '--type'"
 fi
 
 # mount maven home if available
@@ -79,6 +95,6 @@ fi
 
 cmd="$cmd $DOCKER_IMAGE ${args[*]}"
 
-echo "Analyzing dependencies"
+echo "Analyzing '$type' dependencies in '$input'"
 eval "$cmd"
 exit "$?";
