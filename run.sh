@@ -8,22 +8,18 @@ M2_HOME=${M2_HOME:-"$HOME"/.m2}
 GRADLE_USER_HOME=${GRADLE_USER_HOME:-"$HOME"/.gradle}
 
 test_command() {
-    if ! command -v "$1" >/dev/null 2>&1
-    then
-        echo "$1 could not be found, $2"
-        exit 1
-    fi
+  if ! command -v "$1" >/dev/null 2>&1
+  then
+    echo "$1 could not be found, $2"
+    exit 1
+  fi
 }
 
 test_command "docker" "follow the guide at https://docs.docker.com/engine/install/"
 
 if [ -f "$BASEDIR/Dockerfile" ]; then
-  docker_log=$(mktemp)
-  docker build -t "$DOCKER_IMAGE" . > "$docker_log" 2>&1
-  if [ $? != 0 ]; then
-    echo "Failed to build docker image, check logs at $docker_log"
-    exit 1
-  fi
+  echo "Building docker image"
+  docker build --quiet -t "$DOCKER_IMAGE" .
 fi
 
 args=()
@@ -47,7 +43,6 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
-
     *)
       source="$1"
       shift
@@ -82,6 +77,7 @@ else
 fi
 
 cmd="$cmd $DOCKER_IMAGE ${args[*]}"
-eval "$cmd"
 
-exit 0;
+echo "Analyzing $type dependencies"
+eval "$cmd"
+exit "$?";

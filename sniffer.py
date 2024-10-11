@@ -33,12 +33,12 @@ class Dependency:
     type: str
 
     def __init__(
-        self,
-        group_id: str,
-        artifact_id: str,
-        version: str,
-        scope: str = None,
-        type: str = "jar",
+            self,
+            group_id: str,
+            artifact_id: str,
+            version: str,
+            scope: str = None,
+            type: str = "jar",
     ):
         self.group_id = group_id
         self.artifact_id = artifact_id
@@ -49,9 +49,9 @@ class Dependency:
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return (
-                self.group_id == other.group_id
-                and self.artifact_id == other.artifact_id
-                and self.version == other.version
+                    self.group_id == other.group_id
+                    and self.artifact_id == other.artifact_id
+                    and self.version == other.version
             )
 
     def __hash__(self):
@@ -70,7 +70,8 @@ def _analyze_java_dependencies(args: Namespace):
         message = f"The artifact with id '{args.artifact}'"
         result = _find_java_artifact(args)
     else:
-        raise RuntimeError("You have to specify either --package or --artifact")
+        print("You have to specify either --package or --artifact", file=sys.stderr)
+        exit(1)
 
     if len(result) == 0:
         print(message + " has not been found in any file(s)")
@@ -79,8 +80,8 @@ def _analyze_java_dependencies(args: Namespace):
         dependencies = dict()
         for item in result:
             index = item.index("{")
-            parent_file = item[len(args.workspace) + 1 : index]
-            children_ref = item[index + 1 : -1]
+            parent_file = item[len(args.workspace) + 1: index]
+            children_ref = item[index + 1: -1]
             children = dependencies.setdefault(parent_file, [])
             match len(children):
                 case x if x < 3:
@@ -128,7 +129,8 @@ def _find_java_artifact(args: Namespace) -> list[str]:
             f"--zmax={args.depth}",  # decompress files
             "-o",  # only output the match
             "-%",
-            f"artifactId={args.artifact} OR Implementation-Title:.+{args.artifact} OR Bundle-.*Name:.+{args.artifact}",  # containing the artifact description
+            f"artifactId={args.artifact} OR Implementation-Title:.+{args.artifact} OR Bundle-.*Name:.+{args.artifact}",
+            # containing the artifact description
             "--json",
             args.workspace,
         ],
@@ -167,7 +169,7 @@ def _copy_java_dependencies(args: Namespace, dependencies: set[Dependency]):
 
 
 def _copy_java_dependency(
-    dep: Dependency, maven_home: str, gradle_home: str, target: str
+        dep: Dependency, maven_home: str, gradle_home: str, target: str
 ) -> bool:
     """Copies the selected dependency into the workspace, it first tries maven, then gradle and finally tries to
     resolve the dependency against maven central"""
@@ -175,7 +177,7 @@ def _copy_java_dependency(
         return True
 
     if os.path.exists(gradle_home) and _copy_gradle_dependency(
-        dep, gradle_home, target
+            dep, gradle_home, target
     ):
         return True
 
@@ -240,7 +242,8 @@ def _extract_maven_dependencies(args: Namespace) -> set[Dependency]:
     """Extracts the different Maven coordinates from a dependency tree in JSON format"""
     source = args.source
     if not os.path.isfile(source):
-        raise ValueError("Missing Maven dependency report")
+        print("Missing Maven dependency report", file=sys.stderr)
+        exit(1)
 
     dependencies = set()
     json_deps = list()
@@ -248,7 +251,8 @@ def _extract_maven_dependencies(args: Namespace) -> set[Dependency]:
         try:
             parsed = json.load(target)
         except Exception as err:
-            raise RuntimeError("Failed to parse Maven json dependency tree", err)
+            print("Failed to parse Maven json dependency tree", file=sys.stderr)
+            exit(1)
         if isinstance(parsed, list):
             json_deps.extend(parsed)
         else:
@@ -275,7 +279,8 @@ def _extract_gradle_dependencies(args: Namespace) -> set[Dependency]:
     """Extracts the different Gradle coordinates from a dependency tree in textual format"""
     source = args.source
     if not os.path.isfile(source):
-        raise ValueError("Missing Gradle dependency tree file")
+        print("Missing Gradle dependency report", file=sys.stderr)
+        exit(1)
 
     dependencies = set()
     with open(source) as target:
@@ -347,7 +352,7 @@ def analyze():
         case Type.GRADLE:
             _analyze_gradle(args)
         case _:
-            raise ValueError(f"Wrong type selected: {args.type}")
-
+            print(f"Invalid type selected: {args.type}", file=sys.stderr)
+            exit(1)
 
 analyze()
