@@ -70,7 +70,7 @@ def _analyze_java_dependencies(args: Namespace):
         message = f"The artifact with id '{args.artifact}'"
         result = _find_java_artifact(args)
     else:
-        print("You have to specify either --package or --artifact", file=sys.stderr)
+        print("You have to specify either --package or --artifact")
         sys.exit(1)
 
     if len(result) == 0:
@@ -162,11 +162,12 @@ def _copy_java_dependencies(args: Namespace, dependencies: set[Dependency]):
     gradle_home = os.path.join(home, ".gradle", "caches", "modules-2", "files-2.1")
 
     for dep in dependencies:
-        if not _copy_java_dependency(dep, maven_home, gradle_home, args.workspace):
-            print(
-                f"Cannot find dependency with coordinates '{dep}'",
-                file=sys.stderr,
-            )
+        try:
+            if not _copy_java_dependency(dep, maven_home, gradle_home, args.workspace):
+                print(f"Cannot find dependency with coordinates '{dep}'")
+        except Exception as e:
+            print(f"Failed to download dependency with coordinates '{dep}'")
+            print(e, file=sys.stderr)
 
 
 def _copy_java_dependency(
@@ -177,9 +178,7 @@ def _copy_java_dependency(
     if os.path.exists(maven_home) and _copy_maven_dependency(dep, maven_home, target):
         return True
 
-    if os.path.exists(gradle_home) and _copy_gradle_dependency(
-        dep, gradle_home, target
-    ):
+    if os.path.exists(gradle_home) and _copy_gradle_dependency(dep, gradle_home, target):
         return True
 
     return _copy_maven_central_dependency(dep, target)
@@ -235,7 +234,8 @@ def _copy_maven_central_dependency(dep: Dependency, target: str) -> bool:
                 return False
             local.write(remote.read())
             return True
-    except URLError:
+    except URLError as e:
+        print(f"Failed to download dependency from {url}, reason: {e}", file=sys.stderr)
         return False
 
 
@@ -243,7 +243,7 @@ def _extract_maven_dependencies(args: Namespace) -> set[Dependency]:
     """Extracts the different Maven coordinates from a dependency tree in JSON format"""
     input_file = args.input
     if not os.path.isfile(input_file):
-        print("The Maven dependency report file does not exist", file=sys.stderr)
+        print("The Maven dependency report file does not exist")
         sys.exit(1)
 
     dependencies = set()
@@ -251,8 +251,9 @@ def _extract_maven_dependencies(args: Namespace) -> set[Dependency]:
     with open(input_file) as target:
         try:
             parsed = json.load(target)
-        except Exception as err:
-            print("Failed to parse Maven json dependency tree", file=sys.stderr)
+        except Exception as e:
+            print("Failed to parse Maven json dependency tree")
+            print(e, file=sys.stderr)
             sys.exit(1)
         if isinstance(parsed, list):
             json_deps.extend(parsed)
@@ -280,7 +281,7 @@ def _extract_gradle_dependencies(args: Namespace) -> set[Dependency]:
     """Extracts the different Gradle coordinates from a dependency tree in textual format"""
     input_file = args.input
     if not os.path.isfile(input_file):
-        print("The Gradle dependency report file does not exist", file=sys.stderr)
+        print("The Gradle dependency report file does not exist")
         sys.exit(1)
 
     dependencies = set()
@@ -288,12 +289,20 @@ def _extract_gradle_dependencies(args: Namespace) -> set[Dependency]:
         for line in target:
             match = re.search(r"[+\\]--- (\S+:\S+:.+$)", line)
             if match is not None:
-                group, artifact, version = match.group(1).split(":")
-                version = re.sub(r" \(.+\)", "", version)
-                index = version.find(" -> ")
-                if index >= 0:
-                    version = version[index + 4:]
-                dependencies.add(Dependency(group, artifact, version))
+                coordinates = match.group(1)
+                try:
+                    parts = coordinates.split(":")
+                    group = parts[0].strip()
+                    artifact = parts[1].strip()
+                    version = parts[2].strip()
+                    upgraded_version_idx = version.find(' -> ')
+                    if upgraded_version_idx >= 0:
+                        version = version[upgraded_version_idx + 4:].strip()
+                    version = re.sub(r"\s*(?:\(.+\))?\s*", "", version)  # remove (*)
+                    dependencies.add(Dependency(group, artifact, version))
+                except Exception as e:
+                    print(f"Failed to extract maven coordinates from '{coordinates}'")
+                    print(e, file=sys.stderr)
 
     return dependencies
 
@@ -357,7 +366,7 @@ def analyze():
         case Type.GRADLE:
             _analyze_gradle(args)
         case _:
-            print(f"Invalid type selected: {args.type}", file=sys.stderr)
+            print(f"Invalid type selected: {args.type}")
             sys.exit(1)
 
 
