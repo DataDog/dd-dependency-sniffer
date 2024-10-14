@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.13-alpine
 
 MAINTAINER Manuel Alvarez Alvarez "manuel.alvarezalvarez@datadoghq.com"
 
@@ -7,13 +7,10 @@ ARG USER_GID="1000"
 ARG USER_NAME="datadog"
 ARG USER_HOME="/home/datadog"
 
-RUN apt-get update && \
-    apt-get install -y ugrep=3.11.2+dfsg-1 && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -rf /tmp/*
+RUN apk --no-cache add ugrep=6.0.0-r0
 
-RUN groupadd -g $USER_GID $USER_NAME && \
-    useradd -m -g $USER_GID -u $USER_UID -d $USER_HOME $USER_NAME
+RUN addgroup -g $USER_GID $USER_NAME && \
+    adduser -G $USER_NAME -u $USER_UID -h $USER_HOME -D $USER_NAME
 
 USER $USER_NAME
 WORKDIR $USER_HOME
