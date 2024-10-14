@@ -1,9 +1,10 @@
 # Datadog Dependency Sniffer
 
-The Datadog Dependency Sniffer is a powerful tool designed to efficiently scan and analyze the dependencies of a
-project, identifying the usage of specific dependencies. It effectively handles scenarios where dependencies might be
-shaded or relocated, providing accurate insights into the libraries your project relies on. This tool is particularly
-useful for compliance with legal requirements, auditing security vulnerabilities, and managing software complexity.
+The Datadog Dependency Sniffer is a tool designed to scan and analyze the dependencies of a project, identifying the
+actual location of specific dependencies in order to assist locating vulnerable dependencies discovered by Datadog's
+[SCA](https://www.datadoghq.com/product/software-composition-analysis/).
+It effectively handles scenarios where dependencies might be shaded or relocated, providing accurate insights into the
+libraries your project relies on.
 
 ## Features
 
@@ -11,6 +12,7 @@ useful for compliance with legal requirements, auditing security vulnerabilities
 - **Shading and Relocation Detection**: Accounts for shaded and relocated packages to provide more accurate results.
 - **Customizable Search Criteria**: Specify the dependency you want to search for using patterns.
 - **Cross-Platform Support**: Compatible with Windows, macOS, and Linux systems.
+- **Language support**: Current version targets Java/JVM dependencies in Maven and Gradle projects
 
 ## Installation
 
