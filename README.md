@@ -51,7 +51,7 @@ for greater accuracy.
 ### Maven
 
 Ensure all dependencies are available in your local Maven repository and then execute the Maven dependency plugin
-report:
+report, from your project run:
 
 ```shell
 ./mvnw install
@@ -66,7 +66,8 @@ Run the script:
 
 ### Gradle
 
-Ensure all dependencies are available in your local Gradle repository and then execute the Gradle dependencies task:
+Ensure all dependencies are available in your local Gradle repository and then execute the Gradle dependencies task,
+from your project run:
 
 ```shell
 ./gradlew build
