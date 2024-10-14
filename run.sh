@@ -93,15 +93,19 @@ else
   cmd="$cmd -v $GRADLE_USER_HOME:/home/datadog/.gradle"
 fi
 
+# mount log file
+log=$(mktemp -t "dd-dependency-sniffer.XXX.log")
+cmd="$cmd -v $log:/home/datadog/dd-dependency-sniffer.log"
+
+# finally specify the docker image and arguments
 cmd="$cmd $DOCKER_IMAGE ${args[*]}"
 
 echo "Analyzing '$type' dependencies in '$input'"
-stderr=$(mktemp dd-dependency-sniffer.XXX.err)
-eval "$cmd" 2>"$stderr"
-if [ -s "$stderr" ]; then
-  >&2 echo "The log file '$stderr' has been generated with all the error output from the process"
+eval "$cmd"
+if [ -s "$log" ]; then
+  >&2 echo "Log files are available at '$log'"
 else
-   rm "$stderr"
+   rm "$log"
 fi
 
 exit 0;

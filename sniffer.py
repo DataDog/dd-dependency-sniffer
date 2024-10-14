@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import logging
 import os
 import re
 import shutil
@@ -14,6 +15,15 @@ from enum import Enum
 from functools import reduce
 from pathlib import Path
 from urllib.error import URLError
+
+WORKSPACE = os.environ.get("WORKSPACE", os.path.join(os.environ.get("HOME"), "workspace"))
+LOG_FILE = os.environ.get("LOG_FILE", os.path.join(os.environ.get("HOME"), "dd-dependency-sniffer.log"))
+
+logging.basicConfig(filename=LOG_FILE,
+                    filemode='w',
+                    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+                    datefmt='%H:%M:%S',
+                    level=logging.DEBUG)
 
 
 class Type(Enum):
@@ -33,12 +43,12 @@ class Dependency:
     type: str
 
     def __init__(
-        self,
-        group_id: str,
-        artifact_id: str,
-        version: str,
-        scope: str = None,
-        type: str = "jar",
+            self,
+            group_id: str,
+            artifact_id: str,
+            version: str,
+            scope: str = None,
+            type: str = "jar",
     ):
         self.group_id = group_id
         self.artifact_id = artifact_id
@@ -49,9 +59,9 @@ class Dependency:
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return (
-                self.group_id == other.group_id
-                and self.artifact_id == other.artifact_id
-                and self.version == other.version
+                    self.group_id == other.group_id
+                    and self.artifact_id == other.artifact_id
+                    and self.version == other.version
             )
 
     def __hash__(self):
@@ -80,7 +90,7 @@ def _analyze_java_dependencies(args: Namespace):
         dependencies = dict()
         for item in result:
             index = item.index("{")
-            parent_file = item[len(args.workspace) + 1: index]
+            parent_file = item[len(WORKSPACE) + 1: index]
             children_ref = item[index + 1: -1]
             children = dependencies.setdefault(parent_file, [])
             match len(children):
@@ -106,7 +116,7 @@ def _find_java_packages(args: Namespace) -> list[str]:
             "-e",
             f"{vm_package}",  # containing the package declaration
             "--json",
-            args.workspace,
+            WORKSPACE,
         ],
         capture_output=True,
     )
@@ -133,7 +143,7 @@ def _find_java_artifact(args: Namespace) -> list[str]:
             f"artifactId={args.artifact} OR Implementation-Title:.+{args.artifact} OR Bundle-.*Name:.+{args.artifact}",
             # containing the artifact description
             "--json",
-            args.workspace,
+            WORKSPACE,
         ],
         capture_output=True,
     )
@@ -148,10 +158,10 @@ def _find_java_artifact(args: Namespace) -> list[str]:
 
 def _copy_java_dependencies(args: Namespace, dependencies: set[Dependency]):
     """Copies the selected dependencies into the workspace for further analysis"""
-    if not os.path.exists(args.workspace):
-        os.makedirs(args.workspace)
+    if not os.path.exists(WORKSPACE):
+        os.makedirs(WORKSPACE)
     else:
-        for root, dirs, files in os.walk(args.workspace):
+        for root, dirs, files in os.walk(WORKSPACE):
             for f in files:
                 os.unlink(os.path.join(root, f))
             for d in dirs:
@@ -163,15 +173,15 @@ def _copy_java_dependencies(args: Namespace, dependencies: set[Dependency]):
 
     for dep in dependencies:
         try:
-            if not _copy_java_dependency(dep, maven_home, gradle_home, args.workspace):
+            if not _copy_java_dependency(dep, maven_home, gradle_home, WORKSPACE):
                 print(f"Cannot find dependency with coordinates '{dep}'")
-        except Exception as e:
+        except Exception:
             print(f"Failed to download dependency with coordinates '{dep}'")
-            print(e, file=sys.stderr)
+            logging.exception(f"Failed to download dependency with coordinates '{dep}'")
 
 
 def _copy_java_dependency(
-    dep: Dependency, maven_home: str, gradle_home: str, target: str
+        dep: Dependency, maven_home: str, gradle_home: str, target: str
 ) -> bool:
     """Copies the selected dependency into the workspace, it first tries maven, then gradle and finally tries to
     resolve the dependency against maven central"""
@@ -235,7 +245,7 @@ def _copy_maven_central_dependency(dep: Dependency, target: str) -> bool:
             local.write(remote.read())
             return True
     except URLError as e:
-        print(f"Failed to download dependency from {url}, reason: {e}", file=sys.stderr)
+        logging.exception(f"Failed to download dependency from {url}")
         return False
 
 
@@ -253,7 +263,7 @@ def _extract_maven_dependencies(args: Namespace) -> set[Dependency]:
             parsed = json.load(target)
         except Exception as e:
             print("Failed to parse Maven json dependency tree")
-            print(e, file=sys.stderr)
+            logging.exception(f"Failed to parse Maven json dependency tree")
             sys.exit(1)
         if isinstance(parsed, list):
             json_deps.extend(parsed)
@@ -300,9 +310,9 @@ def _extract_gradle_dependencies(args: Namespace) -> set[Dependency]:
                         version = version[upgraded_version_idx + 4:].strip()
                     version = re.sub(r"\s*(?:\(.+\))?\s*", "", version)  # remove (*)
                     dependencies.add(Dependency(group, artifact, version))
-                except Exception as e:
+                except Exception:
                     print(f"Failed to extract maven coordinates from '{coordinates}'")
-                    print(e, file=sys.stderr)
+                    logging.exception(f"Failed to extract maven coordinates from '{coordinates}'")
 
     return dependencies
 
@@ -351,12 +361,6 @@ def analyze():
         help="(Optional) Max recursive depth to search in compressed files (default: 10)",
         type=int,
         default=10,
-    )
-    parser.add_argument(
-        "--workspace",
-        help="(Optional) Temporary folder to store project dependencies",
-        type=str,
-        default="/home/datadog/workspace",
     )
     args = parser.parse_args()
 
