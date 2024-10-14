@@ -1,7 +1,5 @@
 FROM python:3.13-alpine
 
-MAINTAINER Manuel Alvarez Alvarez "manuel.alvarezalvarez@datadoghq.com"
-
 ARG USER_UID="1000"
 ARG USER_GID="1000"
 ARG USER_NAME="datadog"
