@@ -9,7 +9,7 @@ useful for compliance with legal requirements, auditing security vulnerabilities
 
 - **Comprehensive Scanning**: Thoroughly scans project dependencies to identify both direct and transitive usage.
 - **Shading and Relocation Detection**: Accounts for shaded and relocated packages to provide more accurate results.
-- **Customizable Search Criteria**: Specify the dependency you want to search for using version constraints or patterns.
+- **Customizable Search Criteria**: Specify the dependency you want to search for using patterns.
 - **Cross-Platform Support**: Compatible with Windows, macOS, and Linux systems.
 
 ## Installation
