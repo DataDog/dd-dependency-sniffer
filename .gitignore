@@ -291,3 +291,4 @@ gradle-app.setting
 # End of https://www.toptal.com/developers/gitignore/api/gradle,intellij+all,python
 
 workspace
+*.err

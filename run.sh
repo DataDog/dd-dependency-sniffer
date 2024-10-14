@@ -96,5 +96,12 @@ fi
 cmd="$cmd $DOCKER_IMAGE ${args[*]}"
 
 echo "Analyzing '$type' dependencies in '$input'"
-eval "$cmd"
-exit "$?";
+stderr=$(mktemp dd-dependency-sniffer.XXX.err)
+eval "$cmd" 2>"$stderr"
+if [ -s "$stderr" ]; then
+  >&2 echo "The log file '$stderr' has been generated with all the error output from the process"
+else
+   rm "$stderr"
+fi
+
+exit 0;
