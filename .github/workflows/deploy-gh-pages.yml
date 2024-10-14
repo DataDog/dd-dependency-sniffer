@@ -4,12 +4,6 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag for the Docker image'
-        type: string
-        default: manual
-        required: true
 
 env:
   REGISTRY: ghcr.io
