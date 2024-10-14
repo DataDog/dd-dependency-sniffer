@@ -71,7 +71,7 @@ def _analyze_java_dependencies(args: Namespace):
         result = _find_java_artifact(args)
     else:
         print("You have to specify either --package or --artifact", file=sys.stderr)
-        exit(1)
+        sys.exit(1)
 
     if len(result) == 0:
         print(message + " has not been found in any file(s)")
@@ -244,7 +244,7 @@ def _extract_maven_dependencies(args: Namespace) -> set[Dependency]:
     input_file = args.input
     if not os.path.isfile(input_file):
         print("The Maven dependency report file does not exist", file=sys.stderr)
-        exit(1)
+        sys.exit(1)
 
     dependencies = set()
     json_deps = list()
@@ -253,7 +253,7 @@ def _extract_maven_dependencies(args: Namespace) -> set[Dependency]:
             parsed = json.load(target)
         except Exception as err:
             print("Failed to parse Maven json dependency tree", file=sys.stderr)
-            exit(1)
+            sys.exit(1)
         if isinstance(parsed, list):
             json_deps.extend(parsed)
         else:
@@ -281,7 +281,7 @@ def _extract_gradle_dependencies(args: Namespace) -> set[Dependency]:
     input_file = args.input
     if not os.path.isfile(input_file):
         print("The Gradle dependency report file does not exist", file=sys.stderr)
-        exit(1)
+        sys.exit(1)
 
     dependencies = set()
     with open(input_file) as target:
@@ -358,7 +358,7 @@ def analyze():
             _analyze_gradle(args)
         case _:
             print(f"Invalid type selected: {args.type}", file=sys.stderr)
-            exit(1)
+            sys.exit(1)
 
 
 analyze()
