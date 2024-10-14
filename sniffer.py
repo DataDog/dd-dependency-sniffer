@@ -33,12 +33,12 @@ class Dependency:
     type: str
 
     def __init__(
-            self,
-            group_id: str,
-            artifact_id: str,
-            version: str,
-            scope: str = None,
-            type: str = "jar",
+        self,
+        group_id: str,
+        artifact_id: str,
+        version: str,
+        scope: str = None,
+        type: str = "jar",
     ):
         self.group_id = group_id
         self.artifact_id = artifact_id
@@ -49,9 +49,9 @@ class Dependency:
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return (
-                    self.group_id == other.group_id
-                    and self.artifact_id == other.artifact_id
-                    and self.version == other.version
+                self.group_id == other.group_id
+                and self.artifact_id == other.artifact_id
+                and self.version == other.version
             )
 
     def __hash__(self):
@@ -116,7 +116,8 @@ def _find_java_packages(args: Namespace) -> list[str]:
         raise RuntimeError(error)
 
     matches = json.loads(result.stdout)
-    return [match["file"] for match in matches if match["file"].find(vm_package) >= 0]
+    vm_package_regexp = r"\b" + re.escape(vm_package)
+    return [match["file"] for match in matches if re.search(vm_package_regexp, match["file"])]
 
 
 def _find_java_artifact(args: Namespace) -> list[str]:
@@ -169,7 +170,7 @@ def _copy_java_dependencies(args: Namespace, dependencies: set[Dependency]):
 
 
 def _copy_java_dependency(
-        dep: Dependency, maven_home: str, gradle_home: str, target: str
+    dep: Dependency, maven_home: str, gradle_home: str, target: str
 ) -> bool:
     """Copies the selected dependency into the workspace, it first tries maven, then gradle and finally tries to
     resolve the dependency against maven central"""
@@ -177,7 +178,7 @@ def _copy_java_dependency(
         return True
 
     if os.path.exists(gradle_home) and _copy_gradle_dependency(
-            dep, gradle_home, target
+        dep, gradle_home, target
     ):
         return True
 
@@ -285,9 +286,13 @@ def _extract_gradle_dependencies(args: Namespace) -> set[Dependency]:
     dependencies = set()
     with open(input_file) as target:
         for line in target:
-            match = re.search(r"[+\\]--- (\S+:\S+:\S+)", line)
+            match = re.search(r"[+\\]--- (\S+:\S+:.+$)", line)
             if match is not None:
                 group, artifact, version = match.group(1).split(":")
+                version = re.sub(r" \(.+\)", "", version)
+                index = version.find(" -> ")
+                if index >= 0:
+                    version = version[index + 4:]
                 dependencies.add(Dependency(group, artifact, version))
 
     return dependencies
@@ -354,5 +359,6 @@ def analyze():
         case _:
             print(f"Invalid type selected: {args.type}", file=sys.stderr)
             exit(1)
+
 
 analyze()
