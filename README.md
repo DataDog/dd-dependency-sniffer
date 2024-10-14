@@ -25,6 +25,10 @@ cd dd-dependency-sniffer
 
 ## Usage
 
+First ensure that you have the following software installed on your system:
+1. [Docker](https://docs.docker.com/engine/install/)
+2. [Bash](https://www.gnu.org/software/bash/)
+
 The sniffer is capable of parsing and analyzing dependency tree reports from
 both [Maven](https://maven.apache.org/plugins/maven-dependency-plugin/tree-mojo.html)
 and [Gradle](https://docs.gradle.org/current/userguide/viewing_debugging_dependencies.html). It relies on the following
@@ -33,10 +37,18 @@ environment variables to provide access to your local dependencies:
 - **_M2_HOME_** (by default `$HOME/.m2`) pointing to your local Maven repository.
 - **_GRADLE_USER_HOME_** (by default `$HOME/.gradle`) pointing to your local Gradle repository.
 
-You can run the script via the command line:
+You can download the provided script and run it:
 
 ```shell
+curl "https://datadoghq.dev/dd-dependency-sniffer/run.sh" -o run.sh
+chmod +x ./run.sh
 ./run.sh --type [gradle|maven] --artifact $ARTIFACT_ID --package $PACKAGE_NAME $REPORT
+```
+
+Or run it directly with:
+
+```shell
+curl -s "https://datadoghq.dev/dd-dependency-sniffer/run.sh" | bash -s -- --type [gradle|maven] --artifact $ARTIFACT_ID --package $PACKAGE_NAME $REPORT
 ```
 
 The options are as follows:
@@ -63,7 +75,7 @@ report, from your project run:
 Run the script:
 
 ```shell
-./run.sh --type maven --artifact slf4j-api maven.json
+run.sh --type maven --artifact slf4j-api maven.json
 ```
 
 ### Gradle
@@ -79,5 +91,5 @@ from your project run:
 Run the script:
 
 ```shell
-./run.sh --type gradle --artifact slf4j-api gradle.txt
+run.sh --type gradle --artifact slf4j-api gradle.txt
 ```
