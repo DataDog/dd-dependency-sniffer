@@ -14,15 +14,6 @@ libraries your project relies on.
 - **Cross-Platform Support**: Compatible with Windows, macOS, and Linux systems.
 - **Language support**: Current version targets Java/JVM dependencies in Maven and Gradle projects
 
-## Installation
-
-1. **Clone the Repository**
-
-```bash
-git clone https://github.com/DataDog/dd-dependency-sniffer.git
-cd dd-dependency-sniffer
-```
-
 ## Usage
 
 First ensure that you have the following software installed on your system:
