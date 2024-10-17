@@ -91,9 +91,15 @@ def _analyze_java_dependencies(args: Namespace):
 
     dependencies = dict()
     for item in result:
-        index = item.index("{")
-        parent_file = item[len(WORKSPACE) + 1: index]
-        children_ref = item[index + 1: -1]
+        start = item.find("{")
+        if start >= 0:
+            end = item.rfind("}")
+            parent_file = item[len(WORKSPACE) + 1: start]
+            children_ref = item[start + 1: end]
+        else:
+            # should not happen as we are dealing with nested jars
+            parent_file = item
+            children_ref = item
         children = dependencies.setdefault(parent_file, [])
         children.append(children_ref)
 
