@@ -93,3 +93,19 @@ Run the script:
 ```shell
 run.sh --type gradle --artifact slf4j-api gradle.txt
 ```
+
+## Output
+Once the script has been run, you will get an output similar to the following:
+
+```text
+The artifact with id 'slf4j-api' has been found in 2 dependencies:
+
+1. 'nohttp-cli-0.0.11.jar' has matches in:
+        - META-INF/maven/org.slf4j/slf4j-api/pom.properties
+
+2. 'slf4j-api-2.0.16.jar' has matches in:
+        - META-INF/MANIFEST.MF
+        - META-INF/maven/org.slf4j/slf4j-api/pom.properties
+```
+
+In this case the project had a direct dependency with `slf4j-api:2.0.16`, but it was also shaded in `nohttp-cli:0.0.11`

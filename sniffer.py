@@ -43,12 +43,12 @@ class Dependency:
     type: str
 
     def __init__(
-            self,
-            group_id: str,
-            artifact_id: str,
-            version: str,
-            scope: str = None,
-            type: str = "jar",
+        self,
+        group_id: str,
+        artifact_id: str,
+        version: str,
+        scope: str = None,
+        type: str = "jar",
     ):
         self.group_id = group_id
         self.artifact_id = artifact_id
@@ -59,9 +59,9 @@ class Dependency:
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return (
-                    self.group_id == other.group_id
-                    and self.artifact_id == other.artifact_id
-                    and self.version == other.version
+                self.group_id == other.group_id
+                and self.artifact_id == other.artifact_id
+                and self.version == other.version
             )
 
     def __hash__(self):
@@ -80,26 +80,31 @@ def _analyze_java_dependencies(args: Namespace):
         message = f"The artifact with id '{args.artifact}'"
         result = _find_java_artifact(args)
     else:
-        print("You have to specify either --package or --artifact")
+        print("You have to specify either --package or --artifact", file=sys.stderr)
         sys.exit(1)
 
     if len(result) == 0:
-        print(message + " has not been found in any file(s)")
+        print(f"{message} has not been found in any dependencies")
     else:
-        print(message + " has been found in the following file(s):")
         dependencies = dict()
         for item in result:
             index = item.index("{")
             parent_file = item[len(WORKSPACE) + 1: index]
             children_ref = item[index + 1: -1]
             children = dependencies.setdefault(parent_file, [])
-            match len(children):
-                case x if x < 3:
-                    children.append(children_ref)
-                case x if x == 3:
-                    children.append("...")
+            children.append(children_ref)
 
-        print(json.dumps(dependencies, sort_keys=True, indent=4))
+        print(f"{message} has been found in {len(dependencies)} dependencies:\n")
+        for dep_index, dependency in enumerate(dependencies):
+            print(f"{dep_index + 1}. '{dependency}' has matches in:")
+            for file_index, file in enumerate(dependencies[dependency]):
+                if file_index < 3:
+                    print(f"\t- {file}")
+                elif file_index == 3:
+                    print(f"\t- [...]")
+                else:
+                    break
+            print()
 
 
 def _find_java_packages(args: Namespace) -> list[str]:
@@ -174,14 +179,13 @@ def _copy_java_dependencies(args: Namespace, dependencies: set[Dependency]):
     for dep in dependencies:
         try:
             if not _copy_java_dependency(dep, maven_home, gradle_home, WORKSPACE):
-                print(f"Cannot find dependency with coordinates '{dep}'")
+                logging.error(f"Cannot find dependency with coordinates '{dep}'")
         except Exception:
-            print(f"Failed to download dependency with coordinates '{dep}'")
             logging.exception(f"Failed to download dependency with coordinates '{dep}'")
 
 
 def _copy_java_dependency(
-        dep: Dependency, maven_home: str, gradle_home: str, target: str
+    dep: Dependency, maven_home: str, gradle_home: str, target: str
 ) -> bool:
     """Copies the selected dependency into the workspace, it first tries maven, then gradle and finally tries to
     resolve the dependency against maven central"""
@@ -244,7 +248,7 @@ def _copy_maven_central_dependency(dep: Dependency, target: str) -> bool:
                 return False
             local.write(remote.read())
             return True
-    except URLError as e:
+    except URLError:
         logging.exception(f"Failed to download dependency from {url}")
         return False
 
@@ -253,7 +257,7 @@ def _extract_maven_dependencies(args: Namespace) -> set[Dependency]:
     """Extracts the different Maven coordinates from a dependency tree in JSON format"""
     input_file = args.input
     if not os.path.isfile(input_file):
-        print("The Maven dependency report file does not exist")
+        print("The Maven dependency report file does not exist", file=sys.stderr)
         sys.exit(1)
 
     dependencies = set()
@@ -261,8 +265,8 @@ def _extract_maven_dependencies(args: Namespace) -> set[Dependency]:
     with open(input_file) as target:
         try:
             parsed = json.load(target)
-        except Exception as e:
-            print("Failed to parse Maven json dependency tree")
+        except Exception:
+            print("Failed to parse Maven json dependency tree", file=sys.stderr)
             logging.exception(f"Failed to parse Maven json dependency tree")
             sys.exit(1)
         if isinstance(parsed, list):
@@ -291,7 +295,7 @@ def _extract_gradle_dependencies(args: Namespace) -> set[Dependency]:
     """Extracts the different Gradle coordinates from a dependency tree in textual format"""
     input_file = args.input
     if not os.path.isfile(input_file):
-        print("The Gradle dependency report file does not exist")
+        print("The Gradle dependency report file does not exist", file=sys.stderr)
         sys.exit(1)
 
     dependencies = set()
@@ -311,7 +315,6 @@ def _extract_gradle_dependencies(args: Namespace) -> set[Dependency]:
                     version = re.sub(r"\s*(?:\(.+\))?\s*", "", version)  # remove (*)
                     dependencies.add(Dependency(group, artifact, version))
                 except Exception:
-                    print(f"Failed to extract maven coordinates from '{coordinates}'")
                     logging.exception(f"Failed to extract maven coordinates from '{coordinates}'")
 
     return dependencies
@@ -370,7 +373,7 @@ def analyze():
         case Type.GRADLE:
             _analyze_gradle(args)
         case _:
-            print(f"Invalid type selected: {args.type}")
+            print(f"Invalid type selected: {args.type}", file=sys.stderr)
             sys.exit(1)
 
 
