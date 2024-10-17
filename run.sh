@@ -103,7 +103,7 @@ cmd="$cmd $DOCKER_IMAGE ${args[*]}"
 echo "Analyzing '$type' dependencies in '$input'"
 eval "$cmd"
 if [ -s "$log" ]; then
-  >&2 echo "Log files are available at '$log'"
+  >&2 echo "Log file is available at '$log', please share it with Datadog for troubleshooting"
 else
    rm "$log"
 fi
