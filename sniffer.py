@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import itertools
 import json
 import logging
 import os
@@ -18,6 +19,7 @@ from urllib.error import URLError
 
 WORKSPACE = os.environ.get("WORKSPACE", os.path.join(os.environ.get("HOME"), "workspace"))
 LOG_FILE = os.environ.get("LOG_FILE", os.path.join(os.environ.get("HOME"), "dd-dependency-sniffer.log"))
+MAX_FILES_PER_DEPENDENCY = 3
 
 logging.basicConfig(filename=LOG_FILE,
                     filemode='w',
@@ -85,27 +87,25 @@ def _analyze_java_dependencies(args: Namespace):
 
     if len(result) == 0:
         print(f"{message} has not been found in any dependencies")
-    else:
-        dependencies = dict()
-        for item in result:
-            index = item.index("{")
-            parent_file = item[len(WORKSPACE) + 1: index]
-            children_ref = item[index + 1: -1]
-            children = dependencies.setdefault(parent_file, [])
-            children.append(children_ref)
+        return
 
-        print(f"{message} has been found in {len(dependencies)} dependencies:\n")
-        for dep_index, dependency in enumerate(dependencies):
-            print(f"{dep_index + 1}. '{dependency}' has matches in:")
-            for file_index, file in enumerate(dependencies[dependency]):
-                if file_index < 3:
-                    print(f"\t- {file}")
-                elif file_index == 3:
-                    print(f"\t- [...]")
-                else:
-                    break
-            print()
+    dependencies = dict()
+    for item in result:
+        index = item.index("{")
+        parent_file = item[len(WORKSPACE) + 1: index]
+        children_ref = item[index + 1: -1]
+        children = dependencies.setdefault(parent_file, [])
+        children.append(children_ref)
 
+    print(f"{message} has been found in {len(dependencies)} dependencies:\n")
+    for dep_index, dep in enumerate(dependencies):
+        print(f"{dep_index + 1}. '{dep}' has matches in:")
+        files = dependencies[dep]
+        for file in itertools.islice(files, MAX_FILES_PER_DEPENDENCY):
+            print(f"\t- {file}")
+        if len(files) > MAX_FILES_PER_DEPENDENCY:
+            print(f"\t- [...]")
+        print()
 
 def _find_java_packages(args: Namespace) -> list[str]:
     """Finds java binaries with the selected package name in the bytecode and makes sure it's the original class and
