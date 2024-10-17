@@ -23,11 +23,6 @@ print_usage() {
 
 test_command "docker" "follow the guide at https://docs.docker.com/engine/install/"
 
-if [ -f "$BASEDIR/Dockerfile" ]; then
-  echo "Building docker image"
-  docker build --quiet -t "$DOCKER_IMAGE" .
-fi
-
 args=()
 type=""
 input=""
@@ -57,7 +52,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-cmd="docker run --rm"
+if [ -f "$BASEDIR/Dockerfile" ]; then
+  echo "Building docker image"
+  docker build --quiet -t "$DOCKER_IMAGE" .
+  cmd="docker run --rm"
+else
+  cmd="docker run --pull=always --rm"
+fi
 
 # mount the source pointing to the dependencies
 if [ -z "$input" ]; then
